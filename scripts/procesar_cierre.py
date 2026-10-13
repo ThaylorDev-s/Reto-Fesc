@@ -18,6 +18,7 @@ from datetime import datetime
 COLUMNAS_ACTIVOS = ["documento", "nombre", "estado", "cod_empresa", "empresa", "beneficiarios", "ultimo_aporte"]
 COLUMNAS_EXCEPCIONES = ["documento", "tipo", "detalle"]
 ESTADOS = {"A": "ACTIVO", "I": "INACTIVO"}
+SITUACION_ORIENTE = {"VIGENTE": "A", "RETIRADO": "I"}
 
 
 def leer_csv(ruta, separador=","):
@@ -51,6 +52,7 @@ def main(entrada, salida):
     empresas = {fila["COD_EMP"]: fila["NOM_EMP"] for fila in leer_csv(os.path.join(entrada, "EMPRESA.csv"))}
     beneficiarios = leer_csv(os.path.join(entrada, "AFI_BEN.csv"))
     aportes = leer_csv(os.path.join(entrada, "APORTES.csv"))
+    extracto = leer_csv(os.path.join(entrada, "extracto_caja_oriente.csv"), separador=";")
 
     excepciones = []
 
@@ -102,6 +104,17 @@ def main(entrada, salida):
             excepciones.append([documento, "FECHA_INVALIDA", "FEC_AFI='{0}' no es una fecha válida".format(fila["FEC_AFI"])])
         else:
             fila["FEC_AFI"] = normalizada
+
+    # Regla 6. Cruce con el extracto de Caja Oriente (separador ';', documento de 12 dígitos
+    # con ceros a la izquierda, situación VIGENTE/RETIRADO). Solo se reporta: el archivo
+    # de activos conserva su formato.
+    for fila in extracto:
+        documento = fila["id_afiliado"].lstrip("0")
+        situacion = fila["situacion"].upper()
+        if documento not in universo:
+            excepciones.append([documento, "CRUCE_NO_COINCIDE", "Caja Oriente lo reporta {0}; no existe en AFI_MAE".format(situacion)])
+        elif SITUACION_ORIENTE.get(situacion) != universo[documento]["EST_AFI"]:
+            excepciones.append([documento, "CRUCE_NO_COINCIDE", "Caja Oriente lo reporta {0}; nuestro estado es {1}".format(situacion, universo[documento]["EST_AFI"])])
 
     # Regla 7. Archivo de activos: solo activos con empresa válida
     activos = []

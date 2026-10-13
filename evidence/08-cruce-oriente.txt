@@ -1,0 +1,28 @@
+$ head -3 data/extracto_caja_oriente.csv   (separador ; y documento de 12 dígitos)
+id_afiliado;nombres_apellidos;situacion;fecha_reporte
+000013022985;DANIELA LOPEZ OCHOA;VIGENTE;30/09/2026
+000013664691;VALENTINA DUARTE DIAZ;VIGENTE;30/09/2026
+
+$ head -1 data/AFI_MAE.csv
+NRO_DOC,TIP_DOC,NOM1,NOM2,APE1,APE2,EST_AFI,COD_EMP,FEC_AFI
+
+$ cut -d";" -f3 data/extracto_caja_oriente.csv | sort | uniq -c
+     59 RETIRADO
+    266 VIGENTE
+      1 situacion
+
+$ grep -c CRUCE_NO_COINCIDE output/excepciones.csv   (ANTES)
+0
+
+--- DESPUÉS: cruce en scripts/procesar_cierre.py (quita ceros a la izquierda; VIGENTE=A, RETIRADO=I) ---
+$ grep -c CRUCE_NO_COINCIDE output/excepciones.csv
+25
+$ grep CRUCE_NO_COINCIDE output/excepciones.csv | head -5
+6060554836,CRUCE_NO_COINCIDE,Caja Oriente lo reporta RETIRADO; nuestro estado es A
+1008958781,CRUCE_NO_COINCIDE,Caja Oriente lo reporta RETIRADO; nuestro estado es A
+1002471016,CRUCE_NO_COINCIDE,Caja Oriente lo reporta VIGENTE; no existe en AFI_MAE
+60638164,CRUCE_NO_COINCIDE,Caja Oriente lo reporta RETIRADO; nuestro estado es A
+1043196119,CRUCE_NO_COINCIDE,Caja Oriente lo reporta VIGENTE; no existe en AFI_MAE
+
+$ head -1 output/afiliados_activos.csv   (el archivo de activos conserva su formato)
+documento,nombre,estado,cod_empresa,empresa,beneficiarios,ultimo_aporte
