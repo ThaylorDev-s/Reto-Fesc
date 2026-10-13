@@ -1,0 +1,22 @@
+$ docker compose ps -a   (ANTES)
+SERVICE         STATUS
+cierre-api      Up 23 seconds
+cierre-db       Up 27 seconds (healthy)
+cierre-worker   Exited (1) 24 seconds ago
+
+$ docker compose logs cierre-worker | tail -5
+[2026-10-13T16:36:15Z] [ERROR] codigo=CIE-1107 WORKER_INTERVAL_SECONDS debe ser un entero de segundos; valor recibido: '30s'
+
+$ grep WORKER_INTERVAL_SECONDS .env.example
+17:WORKER_INTERVAL_SECONDS=30s
+
+--- DESPUÉS: WORKER_INTERVAL_SECONDS=30 y docker compose up -d ---
+$ docker compose ps
+SERVICE         STATUS
+cierre-api      Up 20 seconds
+cierre-db       Up About a minute (healthy)
+cierre-worker   Up 20 seconds
+
+$ docker compose logs cierre-worker | tail -3
+[2026-10-13T16:36:56Z] [INFO] cierre-worker iniciado; intervalo=30s
+[2026-10-13T16:36:56Z] [INFO] conciliacion registros=1520 documentos_distintos=1500
