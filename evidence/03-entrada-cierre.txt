@@ -1,0 +1,36 @@
+$ bash ./run.sh   (ANTES)
+Leyendo afiliados desde /opt/cierre/entrada/AFI_MAE.csv
+awk: fatal: cannot open file `/opt/cierre/entrada/AFI_MAE.csv' for reading: No such file or directory
+codigo de salida: 2
+
+$ grep -n ENTRADA= scripts/cierre.sh
+8:ENTRADA=/opt/cierre/entrada
+
+$ ls /opt/cierre/entrada
+ls: cannot access '/opt/cierre/entrada': No such file or directory
+
+$ find . -name "AFI_MAE.csv"
+./data/AFI_MAE.csv
+
+$ git ls-files -s run.sh reset.sh scripts/cierre.sh   (100644 = sin permiso de ejecución)
+100644 89ca91da5c92dffed62d0fed1d61f76576a6ecc4 0	reset.sh
+100644 ae59c76bc912ddc1938f01cb738907ed66702773 0	run.sh
+100644 554ebb5cd22a159047667052b219cdad42c2f171 0	scripts/cierre.sh
+
+--- DESPUÉS: ENTRADA=data en scripts/cierre.sh + chmod +x a los scripts ---
+$ grep -n ENTRADA= scripts/cierre.sh
+8:ENTRADA=data
+
+$ chmod +x run.sh reset.sh scripts/cierre.sh validator && git ls-files -s run.sh reset.sh scripts/cierre.sh validator
+100755 89ca91da5c92dffed62d0fed1d61f76576a6ecc4 0	reset.sh
+100755 ae59c76bc912ddc1938f01cb738907ed66702773 0	run.sh
+100755 dd8eae857939c27f1aeef387d2c4b94285323539 0	scripts/cierre.sh
+100755 6f31299b393fa1d05b67d66afaae3383e14da558 0	validator
+
+$ ./run.sh
+Leyendo afiliados desde data/AFI_MAE.csv
+Cierre terminado
+codigo de salida: 0
+
+$ wc -l output/afiliados_activos.csv
+1226 output/afiliados_activos.csv
