@@ -1,0 +1,30 @@
+$ curl -s -w " HTTP %{http_code}" http://localhost:8081/afiliados/3756530718   (ANTES)
+{"error": "error interno"} HTTP 500
+
+$ docker compose logs cierre-api | grep -A8 CIE-5003 | tail -4
+  File "/app/app.py", line 53, in find_member
+    nombre = nom1 + " " + nom2 + " " + ape1 + " " + ape2
+             ~~~~~~~~~~~^~~~~~
+TypeError: can only concatenate str (not "NoneType") to str
+
+$ grep -c CIE-5003 logs/api.log   (500 registrados en el log heredado)
+700
+
+$ awk -F, 'NR>1 && ($4=="" || $6=="")' data/AFI_MAE.csv | wc -l   (afiliados sin 2do nombre o 2do apellido)
+588
+
+--- DESPUÉS: nombre sin NULL, LEFT JOIN a empresa y estado no válido sin KeyError; docker compose up -d --build cierre-api ---
+$ curl -s -w ' HTTP %{http_code}' http://localhost:8081/afiliados/1098765432
+{"documento": "1098765432", "nombre": "JUAN CARLOS PEREZ GOMEZ", "estado": "ACTIVO", "empresa": "EMPRESA ABC"} HTTP 200
+$ curl -s -w ' HTTP %{http_code}' http://localhost:8081/afiliados/3756530718
+{"documento": "3756530718", "nombre": "CAROLINA CASTRO CASTELLANOS", "estado": "ACTIVO", "empresa": "CONSTRUCTORA SAN LUIS S EN C"} HTTP 200
+$ curl -s -w ' HTTP %{http_code}' http://localhost:8081/afiliados/88121168
+{"documento": "88121168", "nombre": "VALENTINA SANCHEZ SILVA", "estado": "INACTIVO", "empresa": "AGROPECUARIA LA ESPERANZA S EN C"} HTTP 200
+$ curl -s -w ' HTTP %{http_code}' http://localhost:8081/afiliados/6015866271
+{"documento": "6015866271", "nombre": "HERNAN MOLINA RODRIGUEZ", "estado": "ACTIVO", "empresa": "CONFECCIONES SANTANDER LTDA"} HTTP 200
+$ curl -s -w ' HTTP %{http_code}' http://localhost:8081/afiliados/1386135212
+{"documento": "1386135212", "nombre": "DIEGO LUIS JIMENEZ MARTINEZ", "estado": "Z", "empresa": "TECNOLOGIAS PAMPLONA SA"} HTTP 200
+$ curl -s -w ' HTTP %{http_code}' http://localhost:8081/afiliados/6062486330
+{"documento": "6062486330", "nombre": "DIEGO NATALIA ORTIZ SANCHEZ", "estado": "ACTIVO", "empresa": null} HTTP 200
+$ curl -s -w ' HTTP %{http_code}' http://localhost:8081/afiliados/0000000001
+{"error": "afiliado no encontrado"} HTTP 404

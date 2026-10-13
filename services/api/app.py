@@ -22,7 +22,7 @@ ROUTE = re.compile(r"^/afiliados/([0-9]+)$")
 QUERY = """
 SELECT a.nro_doc, a.nom1, a.nom2, a.ape1, a.ape2, a.est_afi, e.nom_emp
 FROM afi_mae a
-JOIN empresa e ON e.cod_emp = a.cod_emp
+LEFT JOIN empresa e ON e.cod_emp = a.cod_emp
 WHERE a.nro_doc = %s
 LIMIT 1
 """
@@ -50,8 +50,10 @@ def find_member(documento):
     if row is None:
         return None
     nro_doc, nom1, nom2, ape1, ape2, est_afi, nom_emp = row
-    nombre = nom1 + " " + nom2 + " " + ape1 + " " + ape2
-    return {"documento": nro_doc, "nombre": nombre.strip(), "estado": ESTADOS[est_afi], "empresa": nom_emp}
+    # nom2 y ape2 pueden venir vacíos (NULL): se omiten en vez de romper la concatenación
+    nombre = " ".join(parte.strip() for parte in (nom1, nom2, ape1, ape2) if parte and parte.strip())
+    # un código de estado distinto de A/I se devuelve tal cual (se reporta como CODIGO_INVALIDO en el cierre)
+    return {"documento": nro_doc, "nombre": nombre, "estado": ESTADOS.get(est_afi, est_afi), "empresa": nom_emp}
 
 
 class Handler(BaseHTTPRequestHandler):
