@@ -1,0 +1,33 @@
+$ cat control/hoja_control.csv
+clave,valor
+fecha_corte,2026-09-30
+total_afiliados,1500
+activos,1194
+inactivos,274
+
+$ cat output/totales.txt   (ANTES: falta inactivos y excepciones)
+total_afiliados=1500
+activos=1194
+
+$ awk -F, "NR>1{print $7}" data/AFI_MAE.csv | sort | uniq -c   (incluye duplicados)
+      3 9
+   1225 A
+    281 I
+      4 P
+      2 X
+      5 Z
+
+--- DESPUÉS: totales con las reglas del diccionario (sin duplicados, sin CODIGO_INVALIDO, activos sin SIN_EMPRESA) ---
+$ cat output/totales.txt
+total_afiliados=1500
+activos=1194
+inactivos=274
+excepciones=104
+
+$ tail -n +2 output/excepciones.csv | wc -l
+104
+$ tail -n +2 output/afiliados_activos.csv | wc -l
+1194
+
+$ diff <(grep -E "^(total_afiliados|activos|inactivos)=" output/totales.txt) <(tail -n +3 control/hoja_control.csv | tr , =)
+coinciden con la hoja de control

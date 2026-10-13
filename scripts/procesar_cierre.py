@@ -139,9 +139,14 @@ def main(entrada, salida):
         escritor = csv.writer(archivo, lineterminator="\n")
         escritor.writerow(COLUMNAS_EXCEPCIONES)
         escritor.writerows(excepciones)
+    # Regla 8. Totales: documentos distintos; activos sin los SIN_EMPRESA; inactivos solo con
+    # código I (los CODIGO_INVALIDO no cuentan en ninguno); excepciones = líneas sin encabezado
+    inactivos = sum(1 for fila in universo.values() if fila["EST_AFI"] == "I")
     with open(os.path.join(salida, "totales.txt"), "w", encoding="utf-8", newline="\n") as archivo:
         archivo.write("total_afiliados={0}\n".format(len(universo)))
         archivo.write("activos={0}\n".format(len(activos)))
+        archivo.write("inactivos={0}\n".format(inactivos))
+        archivo.write("excepciones={0}\n".format(len(excepciones)))
 
 
 if __name__ == "__main__":
