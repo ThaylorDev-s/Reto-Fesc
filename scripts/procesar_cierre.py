@@ -15,6 +15,7 @@ import sys
 
 COLUMNAS_ACTIVOS = ["documento", "nombre", "estado", "cod_empresa", "empresa", "beneficiarios", "ultimo_aporte"]
 COLUMNAS_EXCEPCIONES = ["documento", "tipo", "detalle"]
+ESTADOS = {"A": "ACTIVO", "I": "INACTIVO"}
 
 
 def leer_csv(ruta, separador=","):
@@ -33,10 +34,38 @@ def main(entrada, salida):
     beneficiarios = leer_csv(os.path.join(entrada, "AFI_BEN.csv"))
     aportes = leer_csv(os.path.join(entrada, "APORTES.csv"))
 
-    # Universo: un afiliado por documento, en orden de primera aparición
+    excepciones = []
+
+    # Regla 1. Universo: un afiliado por documento, se conserva la primera aparición
     universo = {}
+    duplicados = []
     for fila in afiliados:
-        universo.setdefault(fila["NRO_DOC"], fila)
+        documento = fila["NRO_DOC"]
+        if documento not in universo:
+            universo[documento] = fila
+        elif documento not in duplicados:
+            duplicados.append(documento)
+    for documento in duplicados:
+        veces = sum(1 for fila in afiliados if fila["NRO_DOC"] == documento)
+        excepciones.append([documento, "DUPLICADO", "aparece {0} veces en AFI_MAE; se conserva la primera".format(veces)])
+
+    # Regla 2. Solo A e I son estados válidos
+    for documento, fila in universo.items():
+        if fila["EST_AFI"] not in ESTADOS:
+            excepciones.append([documento, "CODIGO_INVALIDO", "EST_AFI='{0}' no es A ni I".format(fila["EST_AFI"])])
+
+    # Regla 3. Un activo debe tener una empresa existente
+    sin_empresa = set()
+    for documento, fila in universo.items():
+        if fila["EST_AFI"] == "A" and fila["COD_EMP"] not in empresas:
+            sin_empresa.add(documento)
+            detalle = "COD_EMP vacío" if not fila["COD_EMP"] else "COD_EMP='{0}' no existe en EMPRESA".format(fila["COD_EMP"])
+            excepciones.append([documento, "SIN_EMPRESA", detalle])
+
+    # Regla 4. Beneficiarios cuyo afiliado no existe
+    for fila in beneficiarios:
+        if fila["NRO_DOC_AFI"] not in universo:
+            excepciones.append([fila["NRO_DOC_BEN"], "BENEFICIARIO_HUERFANO", "afiliado {0} no existe en AFI_MAE".format(fila["NRO_DOC_AFI"])])
 
     cantidad_beneficiarios = {}
     for fila in beneficiarios:
@@ -47,9 +76,10 @@ def main(entrada, salida):
         if fila["PERIODO"] > ultimo_aporte.get(fila["NRO_DOC"], ""):
             ultimo_aporte[fila["NRO_DOC"]] = fila["PERIODO"]
 
+    # Regla 7. Archivo de activos: solo activos con empresa válida
     activos = []
     for documento, fila in universo.items():
-        if fila["EST_AFI"] == "A":
+        if fila["EST_AFI"] == "A" and documento not in sin_empresa:
             activos.append([
                 documento,
                 nombre_completo(fila),
@@ -59,8 +89,6 @@ def main(entrada, salida):
                 cantidad_beneficiarios.get(documento, 0),
                 ultimo_aporte.get(documento, ""),
             ])
-
-    excepciones = []
 
     os.makedirs(salida, exist_ok=True)
     with open(os.path.join(salida, "afiliados_activos.csv"), "w", encoding="utf-8", newline="") as archivo:

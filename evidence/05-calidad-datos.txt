@@ -1,0 +1,50 @@
+$ docker compose exec cierre-db psql -U cierre -d cierre -c "SELECT count(*), count(DISTINCT nro_doc) FROM afi_mae"   (ANTES)
+ registros | documentos 
+-----------+------------
+      1520 |       1500
+(1 row)
+
+$ psql: SELECT est_afi, count(*) FROM afi_mae GROUP BY 1
+ est_afi | count 
+---------+-------
+ 9       |     3
+ A       |  1225
+ I       |   281
+ P       |     4
+ X       |     2
+ Z       |     5
+(6 rows)
+
+$ psql: afiliados activos sin empresa
+ count 
+-------
+    18
+(1 row)
+
+$ psql: beneficiarios huérfanos
+ count 
+-------
+    15
+(1 row)
+
+$ cut -d, -f1 data/AFI_MAE.csv | sort | uniq -d | wc -l   (documentos duplicados)
+20
+
+--- DESPUÉS: db/init/03_limpieza.sql elimina duplicados; ./reset.sh && ./run.sh ---
+$ psql: SELECT count(*), count(DISTINCT nro_doc) FROM afi_mae
+ registros | documentos 
+-----------+------------
+      1500 |       1500
+(1 row)
+
+$ cut -d, -f2 output/excepciones.csv | sort | uniq -c
+     15 BENEFICIARIO_HUERFANO
+     14 CODIGO_INVALIDO
+     20 DUPLICADO
+     18 SIN_EMPRESA
+      1 tipo
+$ grep -m3 -E "DUPLICADO|CODIGO_INVALIDO|SIN_EMPRESA|HUERFANO" output/excepciones.csv
+3753924849,DUPLICADO,aparece 2 veces en AFI_MAE; se conserva la primera
+1386135212,CODIGO_INVALIDO,EST_AFI='Z' no es A ni I
+1078175958,SIN_EMPRESA,COD_EMP='1999' no existe en EMPRESA
+1260428286,BENEFICIARIO_HUERFANO,afiliado 1311452235 no existe en AFI_MAE
