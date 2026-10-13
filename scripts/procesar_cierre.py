@@ -11,7 +11,9 @@ cierre varias veces con la misma entrada produce archivos idénticos.
 
 import csv
 import os
+import re
 import sys
+from datetime import datetime
 
 COLUMNAS_ACTIVOS = ["documento", "nombre", "estado", "cod_empresa", "empresa", "beneficiarios", "ultimo_aporte"]
 COLUMNAS_EXCEPCIONES = ["documento", "tipo", "detalle"]
@@ -21,6 +23,22 @@ ESTADOS = {"A": "ACTIVO", "I": "INACTIVO"}
 def leer_csv(ruta, separador=","):
     with open(ruta, encoding="utf-8", newline="") as archivo:
         return [{k.strip(): (v or "").strip() for k, v in fila.items()} for fila in csv.DictReader(archivo, delimiter=separador)]
+
+
+def normalizar_fecha(texto):
+    """Devuelve la fecha en YYYY-MM-DD, o None si no es una fecha real en un formato aceptado."""
+    formatos = (
+        (r"^\d{4}-\d{2}-\d{2}$", "%Y-%m-%d"),  # formato oficial
+        (r"^\d{2}/\d{2}/\d{4}$", "%d/%m/%Y"),
+        (r"^\d{8}$", "%Y%m%d"),
+    )
+    for patron, formato in formatos:
+        if re.match(patron, texto):
+            try:
+                return datetime.strptime(texto, formato).strftime("%Y-%m-%d")
+            except ValueError:
+                return None  # forma correcta pero fecha imposible (ej. 2025-02-30)
+    return None
 
 
 def nombre_completo(fila):
@@ -75,6 +93,15 @@ def main(entrada, salida):
     for fila in aportes:
         if fila["PERIODO"] > ultimo_aporte.get(fila["NRO_DOC"], ""):
             ultimo_aporte[fila["NRO_DOC"]] = fila["PERIODO"]
+
+    # Regla 5. Fechas: se normalizan los formatos conocidos; lo que no es una fecha real se reporta.
+    # La fecha no excluye al afiliado de los totales.
+    for documento, fila in universo.items():
+        normalizada = normalizar_fecha(fila["FEC_AFI"])
+        if normalizada is None:
+            excepciones.append([documento, "FECHA_INVALIDA", "FEC_AFI='{0}' no es una fecha válida".format(fila["FEC_AFI"])])
+        else:
+            fila["FEC_AFI"] = normalizada
 
     # Regla 7. Archivo de activos: solo activos con empresa válida
     activos = []

@@ -1,0 +1,51 @@
+$ psql: formatos de fec_afi en afi_mae   (ANTES)
+     formato      | count 
+------------------+-------
+ YYYY-MM-DD       |  1473
+ DD/MM/YYYY       |    11
+ YYYYMMDD         |    11
+ otro: SIN FECHA  |     2
+ otro: 15-15-2019 |     1
+ otro: N/A        |     1
+ otro: 2023/02/29 |     1
+(7 rows)
+
+$ grep -c CIE-3301 logs/worker.log   (fecha con formato no soportado)
+298
+$ awk -F, "NR>1{print $9}" data/AFI_MAE.csv | sed -E "s/[0-9]/9/g" | sort | uniq -c
+      1 99-99-9999
+     11 99/99/9999
+   1493 9999-99-99
+      1 9999/99/99
+     11 99999999
+      1 N/A
+      2 SIN FECHA
+
+--- DESPUÉS: normalización en db/init/03_limpieza.sql y en scripts/procesar_cierre.py; ./reset.sh && ./run.sh ---
+$ psql: formatos de fec_afi en afi_mae
+     formato      | count 
+------------------+-------
+ YYYY-MM-DD       |  1491
+ DD/MM/YYYY       |     2
+ YYYYMMDD         |     2
+ otro: SIN FECHA  |     2
+ otro: N/A        |     1
+ otro: 15-15-2019 |     1
+ otro: 2023/02/29 |     1
+(7 rows)
+
+$ grep FECHA_INVALIDA output/excepciones.csv
+1044259063,FECHA_INVALIDA,FEC_AFI='2025-02-30' no es una fecha válida
+8830134354,FECHA_INVALIDA,FEC_AFI='2025-02-30' no es una fecha válida
+1052051148,FECHA_INVALIDA,FEC_AFI='31/13/2024' no es una fecha válida
+3757045739,FECHA_INVALIDA,FEC_AFI='00000000' no es una fecha válida
+1058468350,FECHA_INVALIDA,FEC_AFI='SIN FECHA' no es una fecha válida
+3709342692,FECHA_INVALIDA,FEC_AFI='2024-00-10' no es una fecha válida
+6089354914,FECHA_INVALIDA,FEC_AFI='31/13/2024' no es una fecha válida
+60692566,FECHA_INVALIDA,FEC_AFI='SIN FECHA' no es una fecha válida
+8874391659,FECHA_INVALIDA,FEC_AFI='00000000' no es una fecha válida
+6026309765,FECHA_INVALIDA,FEC_AFI='N/A' no es una fecha válida
+8803649849,FECHA_INVALIDA,FEC_AFI='2023/02/29' no es una fecha válida
+60087263,FECHA_INVALIDA,FEC_AFI='15-15-2019' no es una fecha válida
+$ grep -c FECHA_INVALIDA output/excepciones.csv
+12
