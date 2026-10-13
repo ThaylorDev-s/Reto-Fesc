@@ -28,6 +28,11 @@ ACTIVOS=$(tail -n +2 $SALIDA/afiliados_activos.csv | wc -l)
 echo "total_afiliados=$TOTAL" >> $SALIDA/totales.txt
 echo "activos=$ACTIVOS" >> $SALIDA/totales.txt
 
+# Error más frecuente en los logs de los tres servicios (solo códigos CIE-####; los W-### son avisos)
+TOP=$(grep -ohE 'CIE-[0-9]{4}' logs/*.log | sort | uniq -c | sort -k1,1nr -k2,2 | head -n 1)
+echo "codigo_error=$(echo "$TOP" | awk '{print $2}')" > $SALIDA/top_error.txt
+echo "ocurrencias=$(echo "$TOP" | awk '{print $1}')" >> $SALIDA/top_error.txt
+
 # El archivo de entrada ya fue procesado
 mkdir -p $ENTRADA/procesados
 mv $ENTRADA/AFI_MAE.csv $ENTRADA/procesados/

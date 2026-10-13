@@ -1,0 +1,26 @@
+$ wc -l logs/*.log
+  4656 logs/api.log
+  2981 logs/database.log
+  3878 logs/worker.log
+ 11515 total
+
+$ grep -ohE "CIE-[0-9]{4}" logs/*.log | sort | uniq -c | sort -rn
+   1424 CIE-4012
+    700 CIE-5003
+    460 CIE-2210
+    298 CIE-3301
+    158 CIE-1107
+     75 CIE-6020
+
+$ grep -c CIE-4012 logs/*.log   (por archivo)
+logs/api.log:356
+logs/database.log:0
+logs/worker.log:1068
+
+$ grep -m2 CIE-4012 logs/worker.log
+[2026-09-30T20:35:08Z] [ERROR] codigo=CIE-4012 detalle="Lote rechazado: registro de afiliado sin empresa asociada" lote=165
+[2026-09-30T20:35:11Z] [ERROR] codigo=CIE-4012 detalle="Lote rechazado: registro de afiliado sin empresa asociada" lote=225
+
+$ ./run.sh && cat output/top_error.txt
+codigo_error=CIE-4012
+ocurrencias=1424
