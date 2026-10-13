@@ -1,40 +1,25 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Cierre mensual de afiliados activos (script heredado de Operaciones).
-# Autor original: equipo de sistemas 2019. Última modificación: "temporal".
+# Cierre mensual de afiliados activos.
+# Lee los CSV de data/ sin modificarlos y genera output/ desde cero en cada
+# ejecución, por lo que puede correrse las veces que se necesite.
 # ---------------------------------------------------------------------------
-set -e
+set -euo pipefail
+cd "$(dirname "$0")/.."
 
 ENTRADA=data
 SALIDA=output
 
-mkdir $SALIDA
+# Se regenera la salida completa: nada de la ejecución anterior se reutiliza
+rm -rf "$SALIDA"
+mkdir -p "$SALIDA"
 
 echo "Leyendo afiliados desde $ENTRADA/AFI_MAE.csv"
-
-# Archivo de activos para Subsidios
-echo "documento,nombre,estado,cod_empresa,empresa,beneficiarios,ultimo_aporte" > $SALIDA/afiliados_activos.csv
-awk -F',' 'NR > 1 && $7 == "A" { print $1 "," $3 " " $4 " " $5 " " $6 ",ACTIVO," $8 ",,0," }' \
-    $ENTRADA/AFI_MAE.csv >> $SALIDA/afiliados_activos.csv
-
-# TODO: nombre de la empresa desde EMPRESA.csv
-# TODO: contar beneficiarios desde AFI_BEN.csv
-# TODO: último aporte desde APORTES.csv (YYYY-MM)
-# TODO: excepciones (lo pidió Auditoría, nunca se terminó)
-# TODO: cruce con el extracto de Caja Oriente
-
-TOTAL=$(tail -n +2 $ENTRADA/AFI_MAE.csv | wc -l)
-ACTIVOS=$(tail -n +2 $SALIDA/afiliados_activos.csv | wc -l)
-echo "total_afiliados=$TOTAL" >> $SALIDA/totales.txt
-echo "activos=$ACTIVOS" >> $SALIDA/totales.txt
+python3 scripts/procesar_cierre.py "$ENTRADA" "$SALIDA"
 
 # Error más frecuente en los logs de los tres servicios (solo códigos CIE-####; los W-### son avisos)
 TOP=$(grep -ohE 'CIE-[0-9]{4}' logs/*.log | sort | uniq -c | sort -k1,1nr -k2,2 | head -n 1)
-echo "codigo_error=$(echo "$TOP" | awk '{print $2}')" > $SALIDA/top_error.txt
-echo "ocurrencias=$(echo "$TOP" | awk '{print $1}')" >> $SALIDA/top_error.txt
-
-# El archivo de entrada ya fue procesado
-mkdir -p $ENTRADA/procesados
-mv $ENTRADA/AFI_MAE.csv $ENTRADA/procesados/
+echo "codigo_error=$(echo "$TOP" | awk '{print $2}')" > "$SALIDA/top_error.txt"
+echo "ocurrencias=$(echo "$TOP" | awk '{print $1}')" >> "$SALIDA/top_error.txt"
 
 echo "Cierre terminado"

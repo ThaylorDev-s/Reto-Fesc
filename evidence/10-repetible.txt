@@ -1,0 +1,48 @@
+$ ./run.sh   (ANTES, 1ra vez)
+Leyendo afiliados desde data/AFI_MAE.csv
+Cierre terminado
+codigo de salida: 0
+
+$ ls data/ data/procesados/   (el script movió la entrada)
+data/:
+AFI_BEN.csv
+APORTES.csv
+EMPRESA.csv
+extracto_caja_oriente.csv
+procesados
+
+data/procesados/:
+AFI_MAE.csv
+
+$ ./run.sh   (ANTES, 2da vez)
+mkdir: output: File exists
+codigo de salida: 1
+
+$ grep -nE "mkdir|mv " scripts/cierre.sh
+11:mkdir $SALIDA
+37:mkdir -p $ENTRADA/procesados
+38:mv $ENTRADA/AFI_MAE.csv $ENTRADA/procesados/
+
+--- DESPUÉS: cierre.sh regenera output/ con mkdir -p, no mueve data/ y procesa con scripts/procesar_cierre.py ---
+$ ./run.sh && md5sum output/*   (1ra vez)
+codigo de salida: 0
+653c0e2514a5424cc31166b8b22b05e4  output/afiliados_activos.csv
+54537a39026aae145860021cbdf122c6  output/excepciones.csv
+89b4d9ab3a279c717acc1576267afcb9  output/top_error.txt
+e68f643bffad90b06ccc285785eb2dbe  output/totales.txt
+
+$ ./run.sh && md5sum output/*   (2da vez)
+codigo de salida: 0
+653c0e2514a5424cc31166b8b22b05e4  output/afiliados_activos.csv
+54537a39026aae145860021cbdf122c6  output/excepciones.csv
+89b4d9ab3a279c717acc1576267afcb9  output/top_error.txt
+e68f643bffad90b06ccc285785eb2dbe  output/totales.txt
+
+$ diff <(1ra) <(2da)
+salidas idénticas
+
+$ ./reset.sh && ./run.sh && md5sum output/*
+salidas idénticas tras reset
+
+$ git status --short data/   (la entrada no se modifica)
+(sin cambios)

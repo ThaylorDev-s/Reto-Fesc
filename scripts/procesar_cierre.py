@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Procesa el cierre mensual de afiliados a partir de los CSV del sistema origen.
+
+Uso: procesar_cierre.py <carpeta_entrada> <carpeta_salida>
+
+Lee los archivos sin modificarlos y escribe en la carpeta de salida:
+  afiliados_activos.csv, excepciones.csv y totales.txt
+Las reglas están en docs/diccionario.md. La salida es determinística: correr el
+cierre varias veces con la misma entrada produce archivos idénticos.
+"""
+
+import csv
+import os
+import sys
+
+COLUMNAS_ACTIVOS = ["documento", "nombre", "estado", "cod_empresa", "empresa", "beneficiarios", "ultimo_aporte"]
+COLUMNAS_EXCEPCIONES = ["documento", "tipo", "detalle"]
+
+
+def leer_csv(ruta, separador=","):
+    with open(ruta, encoding="utf-8", newline="") as archivo:
+        return [{k.strip(): (v or "").strip() for k, v in fila.items()} for fila in csv.DictReader(archivo, delimiter=separador)]
+
+
+def nombre_completo(fila):
+    partes = (fila["NOM1"], fila["NOM2"], fila["APE1"], fila["APE2"])
+    return " ".join(parte for parte in partes if parte)
+
+
+def main(entrada, salida):
+    afiliados = leer_csv(os.path.join(entrada, "AFI_MAE.csv"))
+    empresas = {fila["COD_EMP"]: fila["NOM_EMP"] for fila in leer_csv(os.path.join(entrada, "EMPRESA.csv"))}
+    beneficiarios = leer_csv(os.path.join(entrada, "AFI_BEN.csv"))
+    aportes = leer_csv(os.path.join(entrada, "APORTES.csv"))
+
+    # Universo: un afiliado por documento, en orden de primera aparición
+    universo = {}
+    for fila in afiliados:
+        universo.setdefault(fila["NRO_DOC"], fila)
+
+    cantidad_beneficiarios = {}
+    for fila in beneficiarios:
+        cantidad_beneficiarios[fila["NRO_DOC_AFI"]] = cantidad_beneficiarios.get(fila["NRO_DOC_AFI"], 0) + 1
+
+    ultimo_aporte = {}
+    for fila in aportes:
+        if fila["PERIODO"] > ultimo_aporte.get(fila["NRO_DOC"], ""):
+            ultimo_aporte[fila["NRO_DOC"]] = fila["PERIODO"]
+
+    activos = []
+    for documento, fila in universo.items():
+        if fila["EST_AFI"] == "A":
+            activos.append([
+                documento,
+                nombre_completo(fila),
+                "ACTIVO",
+                fila["COD_EMP"],
+                empresas.get(fila["COD_EMP"], ""),
+                cantidad_beneficiarios.get(documento, 0),
+                ultimo_aporte.get(documento, ""),
+            ])
+
+    excepciones = []
+
+    os.makedirs(salida, exist_ok=True)
+    with open(os.path.join(salida, "afiliados_activos.csv"), "w", encoding="utf-8", newline="") as archivo:
+        escritor = csv.writer(archivo, lineterminator="\n")
+        escritor.writerow(COLUMNAS_ACTIVOS)
+        escritor.writerows(activos)
+    with open(os.path.join(salida, "excepciones.csv"), "w", encoding="utf-8", newline="") as archivo:
+        escritor = csv.writer(archivo, lineterminator="\n")
+        escritor.writerow(COLUMNAS_EXCEPCIONES)
+        escritor.writerows(excepciones)
+    with open(os.path.join(salida, "totales.txt"), "w", encoding="utf-8", newline="\n") as archivo:
+        archivo.write("total_afiliados={0}\n".format(len(universo)))
+        archivo.write("activos={0}\n".format(len(activos)))
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        sys.exit(__doc__)
+    main(sys.argv[1], sys.argv[2])
